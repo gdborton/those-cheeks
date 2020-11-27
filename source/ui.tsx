@@ -38,7 +38,7 @@ const PCM_FORMAT = {
 };
 
 async function sideEffects(
-	callback: (frame: number, audioDataParser: () => number[]) => void,
+  callback: (frame: number, audioDataParser: () => number[]) => void
 ) {
   const key = await soundcloudKeyFetch.fetchKey();
   const response = await got<UserStreamsResponse>(
@@ -65,33 +65,32 @@ async function sideEffects(
     const decoder = lame.Decoder();
     decoder.on("format", (format: any) => {
       const s = new Speaker(format);
-			const start = Date.now();
-			let shouldRender = true;
-			function renderFrame() {
-				const elapsedTime = Date.now() - start;
-				const audioDataParser = () => {
+      const start = Date.now();
+      let shouldRender = true;
+      function renderFrame() {
+        const elapsedTime = Date.now() - start;
+        const audioDataParser = () => {
           const frame = Math.floor((elapsedTime / 1000) * FPS);
-					return PCM_FORMAT.parseFunction(
-						buffer,
-						frame * audioDataStep,
-						frame * audioDataStep + audioDataStep
-					);
-				};
+          return PCM_FORMAT.parseFunction(
+            buffer,
+            frame * audioDataStep,
+            frame * audioDataStep + audioDataStep
+          );
+        };
 
-				try {
-					callback(Math.floor((elapsedTime / 1000) * FPS), audioDataParser);
-				} catch (e) {
-					console.log("yack", e);
-				}
-				if (shouldRender) {
-					setTimeout(renderFrame, 1000 / FPS);
-				} else {
-
-				}
-			}
-			renderFrame();
+        try {
+          callback(Math.floor((elapsedTime / 1000) * FPS), audioDataParser);
+        } catch (e) {
+          console.log("yack", e);
+        }
+        if (shouldRender) {
+          setTimeout(renderFrame, 1000 / FPS);
+        } else {
+        }
+      }
+      renderFrame();
       decoder.on("end", () => {
-				shouldRender = false;
+        shouldRender = false;
         console.log("all done", Date.now() - start);
       });
       let totalProcessed = 0;
@@ -143,30 +142,21 @@ function Spectrum({
   const highestColor = [250, 38, 160];
   while (lines.length < height) {
     const line = spectrum.map((val) => {
-      const remainder = val * height - lines.length; 
+      const remainder = val * height - lines.length;
       if (remainder > 0) {
         // blocks...
         // https://en.wikipedia.org/wiki/Block_Elements
-        // return '█'; // full
         if (remainder > 1) {
-          return "█"; // full height
-        } else if (remainder > 3/4) {
-          return "▆" // 7/8
-        } else if (remainder > 5/8) {
-          return "▆" // 3/4
-        }else if (remainder > 1/2) {
-          return '▅' // 5/8
-        } else if (remainder > 3/8) {
-          return "▄" // 1/2
-        } else if (remainder > 1/4) {
-          return "▃" // 3/8
-        } else if (remainder > 1/8){
-          return "▂" // 1 / 4
-        } else if (remainder > 0) {
-          return "▁" // lower 1/8 block
+          return "⣿";
+        } else if (remainder > 1 / 2) {
+          return "⣶";
+        } else if (remainder > 1 / 4) {
+          return "⣤";
         }
+
+        return "⣀";
       }
-      return " ";
+      return "⠀";
     });
     const lineString = line.join("");
     if (lineString.length > width) {
@@ -222,9 +212,9 @@ const App: FC = () => {
   const baseSpectrum = Array.apply(null, Array(columns)).map(() => 0);
   const [spectrumProcessor, setSpectrumProcessor] = useState({
     processor: undefined,
-	});
+  });
   const [frameData, setFrameData] = useState({
-		frame: 0,
+    frame: 0,
     audioDataParser: () => baseSpectrum,
   });
   // const [audioDataParser, setAudioDataParser] = useState<number[]>();
@@ -232,8 +222,8 @@ const App: FC = () => {
   useEffect(() => {
     sideEffects((frame, audioDataParser) => {
       setFrameData({
-				frame,
-				audioDataParser,
+        frame,
+        audioDataParser,
       });
     });
   }, []);
@@ -253,11 +243,14 @@ const App: FC = () => {
   }
   const seconds = Math.floor(frameData.frame / FPS);
   return (
-		<>
-			<Spectrum height={15} width={columns} spectrum={spectrum} />
-	<Text>Ken Wheeler - Those Cheeks {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, '0')}</Text>
-		</>
-	);
+    <>
+      <Spectrum height={25} width={columns} spectrum={spectrum} />
+      <Text>
+        Ken Wheeler - Those Cheeks {Math.floor(seconds / 60)}:
+        {(seconds % 60).toString().padStart(2, "0")}
+      </Text>
+    </>
+  );
 };
 
 export default App;
