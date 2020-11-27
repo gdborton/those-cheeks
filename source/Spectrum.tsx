@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, render, Text, Transform } from "ink";
+import { Box, Text } from "ink";
 
 export default function Spectrum({
   spectrum,
@@ -17,30 +17,21 @@ export default function Spectrum({
   const highestColor = [250, 38, 160];
   while (lines.length < height) {
     const line = spectrum.map((val) => {
-      const remainder = val * height - lines.length; 
+      const remainder = val * height - lines.length;
       if (remainder > 0) {
         // blocks...
         // https://en.wikipedia.org/wiki/Block_Elements
-        // return '█'; // full
         if (remainder > 1) {
-          return "█"; // full height
-        } else if (remainder > 3/4) {
-          return "▆" // 7/8
-        } else if (remainder > 5/8) {
-          return "▆" // 3/4
-        }else if (remainder > 1/2) {
-          return '▅' // 5/8
-        } else if (remainder > 3/8) {
-          return "▄" // 1/2
-        } else if (remainder > 1/4) {
-          return "▃" // 3/8
-        } else if (remainder > 1/8){
-          return "▂" // 1 / 4
-        } else if (remainder > 0) {
-          return "▁" // lower 1/8 block
+          return "⣿";
+        } else if (remainder > 1 / 2) {
+          return "⣶";
+        } else if (remainder > 1 / 4) {
+          return "⣤";
         }
+
+        return "⣀";
       }
-      return " ";
+      return "⠀";
     });
     const lineString = line.join("");
     if (lineString.length > width) {

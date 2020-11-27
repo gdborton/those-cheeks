@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useState } from "react";
-import { Box, render, Text, Transform } from "ink";
+import { Text } from "ink";
 import soundcloudKeyFetch from "soundcloud-key-fetch";
 import lame from "@suldashi/lame";
 import got from "got";
@@ -7,9 +7,8 @@ import Speaker from "speaker";
 
 import { bufferToUInt8, createSpectrumsProcessor } from "./audio";
 import useStdoutDimensions from "ink-use-stdout-dimensions";
+import Spectrum from "./Spectrum";
 const FPS = 20;
-
-const spectrumBusesCount = 64 * 2; // number of bars to show in visualizer
 
 type UserStreamsResponse = {
   collection: {
@@ -126,89 +125,8 @@ async function sideEffects(
   }
 }
 
-function Spectrum({
-  spectrum,
-  height = 10,
-  width = 10,
-}: {
-  spectrum: number[];
-  height: number;
-  width: number;
-}) {
-  const lines = [];
-  const lowestColor = [5, 223, 215];
-  const secondLowestColor = [163, 247, 191];
-  const secondHighestColor = [255, 245, 145];
-  const highestColor = [250, 38, 160];
-  while (lines.length < height) {
-    const line = spectrum.map((val) => {
-      const remainder = val * height - lines.length;
-      if (remainder > 0) {
-        // blocks...
-        // https://en.wikipedia.org/wiki/Block_Elements
-        if (remainder > 1) {
-          return "⣿";
-        } else if (remainder > 1 / 2) {
-          return "⣶";
-        } else if (remainder > 1 / 4) {
-          return "⣤";
-        }
-
-        return "⣀";
-      }
-      return "⠀";
-    });
-    const lineString = line.join("");
-    if (lineString.length > width) {
-      // console.log('bugger off', lineString.length, width, spectrum.length);
-    }
-    lines.push(line.join(""));
-  }
-  return (
-    <Box flexDirection="column-reverse">
-      {lines.map((line, index) => {
-        let percent = 0;
-        let color1 = lowestColor;
-        let color2 = secondLowestColor;
-        const percentFilled = index / (height - 1);
-        if (percentFilled < 0.33) {
-          color1 = lowestColor;
-          color2 = secondLowestColor;
-          percent = percentFilled / 0.33;
-        } else if (index / (height - 1) < 0.66) {
-          color1 = secondLowestColor;
-          color2 = secondHighestColor;
-          percent = (percentFilled - 0.33) / 0.33;
-        } else {
-          color1 = secondHighestColor;
-          color2 = highestColor;
-          percent = (percentFilled - 0.66) / 0.33;
-        }
-        const red = Math.min(
-          Math.ceil(color1[0] + percent * (color2[0] - color1[0])),
-          255
-        );
-        const green = Math.min(
-          Math.ceil(color1[1] + percent * (color2[1] - color1[1])),
-          255
-        );
-        const blue = Math.min(
-          Math.ceil(color1[2] + percent * (color2[2] - color1[2])),
-          255
-        );
-        return (
-          <Text color={`rgb(${red}, ${green}, ${blue})`} key={index}>
-            {line}
-          </Text>
-        );
-      })}
-    </Box>
-  );
-}
-
 const App: FC = () => {
   const [columns, rows] = useStdoutDimensions();
-  // const columns = 64 * 2;
   const baseSpectrum = Array.apply(null, Array(columns)).map(() => 0);
   const [spectrumProcessor, setSpectrumProcessor] = useState({
     processor: undefined,
@@ -217,8 +135,6 @@ const App: FC = () => {
     frame: 0,
     audioDataParser: () => baseSpectrum,
   });
-  // const [audioDataParser, setAudioDataParser] = useState<number[]>();
-  // const [frame, setFrame] = useState(0);
   useEffect(() => {
     sideEffects((frame, audioDataParser) => {
       setFrameData({
