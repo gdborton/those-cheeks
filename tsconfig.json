@@ -1,0 +1,10 @@
+{
+	// "extends": "@sindresorhus/tsconfig",
+	"compilerOptions": {
+		"jsx": "react",
+		"esModuleInterop": true,
+		"outDir": "dist",
+		"skipLibCheck": true
+	},
+	"include": ["source"]
+}
