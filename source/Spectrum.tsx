@@ -46,18 +46,18 @@ export default function Spectrum({
         let color1 = lowestColor;
         let color2 = secondLowestColor;
         const percentFilled = index / (height - 1);
-        if (percentFilled < 0.4) {
+        if (percentFilled <= 0.33) {
           color1 = lowestColor;
           color2 = secondLowestColor;
-          percent = percentFilled / 0.4;
-        } else if (percentFilled < 0.9) {
+          percent = percentFilled / 0.33;
+        } else if (percentFilled <= 0.66) {
           color1 = secondLowestColor;
           color2 = secondHighestColor;
-          percent = (percentFilled - 0.4) / 0.5;
+          percent = (percentFilled - 0.33) / 0.33;
         } else {
           color1 = secondHighestColor;
           color2 = highestColor;
-          percent = (percentFilled - 0.9) / 0.1;
+          percent = (percentFilled - 0.66) / 0.33;
         }
         const red = Math.min(
           Math.ceil(color1[0] + percent * (color2[0] - color1[0])),
