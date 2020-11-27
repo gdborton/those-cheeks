@@ -120,7 +120,7 @@ async function sideEffects(
       alaw: false,
       bitDepth: 16,
     };
-    const audioDuration = 40.008;
+    const audioDuration = 136.008;
     const framesCount = Math.trunc(audioDuration * FPS);
     const audioDataStep = Math.trunc(buffer.length / framesCount);
     got.stream(response.body.url).pipe(decoder);
