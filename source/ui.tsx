@@ -143,11 +143,28 @@ function Spectrum({
   const highestColor = [250, 38, 160];
   while (lines.length < height) {
     const line = spectrum.map((val) => {
-      if (Math.floor(val * height) >= lines.length) {
+      const remainder = val * height - lines.length; 
+      if (remainder > 0) {
         // blocks...
         // https://en.wikipedia.org/wiki/Block_Elements
         // return '█'; // full
-        return "▊"; // 3/4 width
+        if (remainder > 1) {
+          return "█"; // full height
+        } else if (remainder > 3/4) {
+          return "▆" // 7/8
+        } else if (remainder > 5/8) {
+          return "▆" // 3/4
+        }else if (remainder > 1/2) {
+          return '▅' // 5/8
+        } else if (remainder > 3/8) {
+          return "▄" // 1/2
+        } else if (remainder > 1/4) {
+          return "▃" // 3/8
+        } else if (remainder > 1/8){
+          return "▂" // 1 / 4
+        } else if (remainder > 0) {
+          return "▁" // lower 1/8 block
+        }
       }
       return " ";
     });
@@ -198,7 +215,7 @@ function Spectrum({
     </Box>
   );
 }
-const start = Date.now();
+
 const App: FC = () => {
   const [columns, rows] = useStdoutDimensions();
   // const columns = 64 * 2;
@@ -238,7 +255,7 @@ const App: FC = () => {
   return (
 		<>
 			<Spectrum height={15} width={columns} spectrum={spectrum} />
-	<Text>Ken Wheeler - Those Cheeks {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, '0')} {Date.now() - start}</Text>
+	<Text>Ken Wheeler - Those Cheeks {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, '0')}</Text>
 		</>
 	);
 };
