@@ -1,5 +1,8 @@
 import React from "react";
 import { Box, Text } from "ink";
+import getCharacterFromRemainders from "./getSpectrumCharacter";
+
+
 
 export default function Spectrum({
   spectrum,
@@ -11,34 +14,16 @@ export default function Spectrum({
   width: number;
 }) {
   const lines = [];
-  const lowestColor = [5, 223, 215];
-  const secondLowestColor = [163, 247, 191];
-  const secondHighestColor = [255, 245, 145];
-  const highestColor = [250, 38, 160];
+  const lowestColor = [5, 255, 250];
+  const secondLowestColor = [100, 247,150];
+  const secondHighestColor = [255, 200, 100];
+  const highestColor = [250, 38, 100];
   while (lines.length < height) {
-    const line = spectrum.map((val) => {
-      const remainder = val * height - lines.length;
-      if (remainder > 0) {
-        // blocks...
-        // https://en.wikipedia.org/wiki/Block_Elements
-        if (remainder > 1) {
-          return "⣿";
-        } else if (remainder > 1 / 2) {
-          return "⣶";
-        } else if (remainder > 1 / 4) {
-          return "⣤";
-        }
-
-        return "⣀";
-      }
-      if (lines.length === 0) {
-        return "⣀";
-      }
-      return "⠀";
-    });
-    const lineString = line.join("");
-    if (lineString.length > width) {
-      // console.log('bugger off', lineString.length, width, spectrum.length);
+    let line = [];
+    for(let spectrumIndex = 0; spectrumIndex < spectrum.length; spectrumIndex += 2) {
+      const leftRemainder = spectrum[spectrumIndex] * height - lines.length;
+      const rightRemainder = spectrum[spectrumIndex + 1] * height - lines.length;
+      line.push(getCharacterFromRemainders(leftRemainder, rightRemainder, lines.length)); 
     }
     lines.push(line.join(""));
   }
@@ -50,7 +35,7 @@ export default function Spectrum({
         let color2 = secondLowestColor;
         const percentFilled = index / (height - 1);
         const lowThreshold = 0.33;
-        const medThreshold = 0.8;
+        const medThreshold = 0.66;
         if (percentFilled <= lowThreshold) {
           color1 = lowestColor;
           color2 = secondLowestColor;
@@ -62,7 +47,7 @@ export default function Spectrum({
         } else {
           color1 = secondHighestColor;
           color2 = highestColor;
-          percent = (percentFilled - medThreshold) / (1 - medThreshold);
+          percent = Math.min(1, (percentFilled - medThreshold) / (1 - medThreshold) * 2);
         }
         const red = Math.min(
           Math.ceil(color1[0] + percent * (color2[0] - color1[0])),

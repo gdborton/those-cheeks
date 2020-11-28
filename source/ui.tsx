@@ -84,6 +84,9 @@ async function sideEffects(
         } else {
           callback(Date.now() - start, (columns: number) => analyzer.getFrequencyData(columns));
           s.once('drain', () => {
+            if (finished) {
+              callback(Date.now() - start, (columns: number) => Array.apply(null, Array(columns)).map(() => -100));
+            }
             piece++;
             writeUntilEmpty();
           });
@@ -91,13 +94,17 @@ async function sideEffects(
       }
       writeUntilEmpty();
     });
+    let finished = false
+    decoder.on('end', () => {
+      finished = true;
+    });
     apiStream.pipe(decoder)
   }
 }
 
 const App: FC = () => {
   const [columns, rows] = useStdoutDimensions();
-  const baseSpectrum = Array.apply(null, Array(columns)).map(() => -100);
+  const baseSpectrum = Array.apply(null, Array(columns * 2)).map(() => -100);
   const [frameData, setFrameData] = useState({
     time: 0,
     audioDataParser: (num) => baseSpectrum,
@@ -111,10 +118,10 @@ const App: FC = () => {
     });
   }, []);
   const seconds = Math.floor(frameData.time / 1000);
-  const spec = normalizeAudioData(frameData.audioDataParser(columns));
+  const spec = normalizeAudioData(frameData.audioDataParser(columns * 2));
   return (
     <>
-      {<Spectrum height={5} width={columns} spectrum={spec} />}
+      <Spectrum height={rows - 1} width={columns} spectrum={spec} />
       <Text>
         Ken Wheeler - <Text italic>Those Cheeks</Text> {Math.floor(seconds / 60)}:
         {(seconds % 60).toString().padStart(2, "0")}
