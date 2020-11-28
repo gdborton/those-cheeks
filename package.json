@@ -22,6 +22,7 @@
 		"audio-analyser": "^1.0.2",
 		"got": "^11.8.0",
 		"ink": "^3.0.8",
+		"ink-link": "^2.0.0",
 		"ink-use-stdout-dimensions": "^1.0.5",
 		"react": "^17.0.1",
 		"soundcloud-key-fetch": "^1.0.11",

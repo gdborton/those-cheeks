@@ -2,8 +2,6 @@ import React from "react";
 import { Box, Text } from "ink";
 import getCharacterFromRemainders from "./getSpectrumCharacter";
 
-
-
 export default function Spectrum({
   spectrum,
   height = 10,

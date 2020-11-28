@@ -66,6 +66,5 @@ export default function getCharacterFromRemainders(leftRemainder, rightRemainder
   } else if (lineNumber === 0) {
     return "⣀";
   }
-  // console.log(leftRemainder, rightRemainder)
   return "⠀";
 }

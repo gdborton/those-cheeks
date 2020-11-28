@@ -5,7 +5,8 @@ import lame from "@suldashi/lame";
 import got from "got";
 import Speaker from "speaker";
 import useStdoutDimensions from "ink-use-stdout-dimensions";
-import Analyser from 'audio-analyser';
+import Analyser from "audio-analyser";
+import InkLink from "ink-link";
 
 import normalizeAudioData from "./normalizeAudioData";
 import Spectrum from "./Spectrum";
@@ -32,7 +33,10 @@ type TranscodingUrlResponse = {
 };
 
 async function sideEffects(
-  callback: (frame: number, audioDataParser: (columns: number) => number[]) => void
+  callback: (
+    frame: number,
+    audioDataParser: (columns: number) => number[]
+  ) => void
 ) {
   const key = await soundcloudKeyFetch.fetchKey();
   const response = await got<UserStreamsResponse>(
@@ -66,26 +70,30 @@ async function sideEffects(
     // @ts-ignore
     const s = new Speaker({ samplesPerFrame: 1 });
     const apiStream = got.stream(response.body.url);
-    
+
     let start;
-    decoder.on('data', (data) => {
+    decoder.on("data", (data) => {
       decoder.pause();
       if (!start) start = Date.now();
       let piece = 0;
       function writeUntilEmpty() {
         const chunkSize = 1024 * 2 * 2;
         const chunk = data.slice(piece * chunkSize, (piece + 1) * chunkSize);
-        
+
         analyzer.write(chunk);
         if (!chunk.length) {
           decoder.resume();
         } else if (s.write(chunk)) {
-          console.log('ugh'); // hmm...
+          // hmm... doesn't seem to me that speaker is ever ready for two writes in a row.
         } else {
-          callback(Date.now() - start, (columns: number) => analyzer.getFrequencyData(columns));
-          s.once('drain', () => {
+          callback(Date.now() - start, (columns: number) =>
+            analyzer.getFrequencyData(columns)
+          );
+          s.once("drain", () => {
             if (finished) {
-              callback(Date.now() - start, (columns: number) => Array.apply(null, Array(columns)).map(() => -100));
+              callback(Date.now() - start, (columns: number) =>
+                Array.apply(null, Array(columns)).map(() => -100)
+              );
             }
             piece++;
             writeUntilEmpty();
@@ -94,17 +102,20 @@ async function sideEffects(
       }
       writeUntilEmpty();
     });
-    let finished = false
-    decoder.on('end', () => {
+    let finished = false;
+    decoder.on("end", () => {
       finished = true;
     });
-    apiStream.pipe(decoder)
+    apiStream.pipe(decoder);
   }
 }
 
 const App: FC = () => {
   const [columns, rows] = useStdoutDimensions();
-  const baseSpectrum = Array.apply(null, Array(columns * 2)).map(() => -100);
+  const columnsToRender = Math.min(columns * 2, 160);
+  const baseSpectrum = Array.apply(null, Array(columnsToRender)).map(
+    () => -100
+  );
   const [frameData, setFrameData] = useState({
     time: 0,
     audioDataParser: (num) => baseSpectrum,
@@ -118,13 +129,33 @@ const App: FC = () => {
     });
   }, []);
   const seconds = Math.floor(frameData.time / 1000);
-  const spec = normalizeAudioData(frameData.audioDataParser(columns * 2));
+  const spec = normalizeAudioData(frameData.audioDataParser(columnsToRender));
+  const title = "Those Cheeks";
+  const artist = "Ken Wheeler";
+  const spacer = " - ";
+  const time = `${Math.floor(seconds / 60)}:${(seconds % 60)
+    .toString()
+    .padStart(2, "0")}`;
   return (
     <>
-      <Spectrum height={rows - 1} width={columns} spectrum={spec} />
+      <Spectrum
+        height={rows - 1}
+        width={columnsToRender / 2}
+        spectrum={spec}
+      />
       <Text>
-        Ken Wheeler - <Text italic>Those Cheeks</Text> {Math.floor(seconds / 60)}:
-        {(seconds % 60).toString().padStart(2, "0")}
+        <InkLink
+          fallback={false}
+          url="https://soundcloud.com/thekenwheeler/those-cheeks"
+        >
+          {artist}
+          {spacer}
+          <Text italic>{title}</Text>
+        </InkLink>
+        {" ".repeat(Math.max(1, columnsToRender / 2 -
+            (artist.length + spacer.length + title.length + time.length))
+        )}
+        {time}
       </Text>
     </>
   );
