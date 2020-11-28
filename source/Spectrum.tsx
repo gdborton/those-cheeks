@@ -31,6 +31,9 @@ export default function Spectrum({
 
         return "⣀";
       }
+      if (lines.length === 0) {
+        return "⣀";
+      }
       return "⠀";
     });
     const lineString = line.join("");
@@ -46,18 +49,20 @@ export default function Spectrum({
         let color1 = lowestColor;
         let color2 = secondLowestColor;
         const percentFilled = index / (height - 1);
-        if (percentFilled <= 0.33) {
+        const lowThreshold = 0.33;
+        const medThreshold = 0.8;
+        if (percentFilled <= lowThreshold) {
           color1 = lowestColor;
           color2 = secondLowestColor;
-          percent = percentFilled / 0.33;
-        } else if (percentFilled <= 0.66) {
+          percent = percentFilled / lowThreshold;
+        } else if (percentFilled <= medThreshold) {
           color1 = secondLowestColor;
           color2 = secondHighestColor;
-          percent = (percentFilled - 0.33) / 0.33;
+          percent = (percentFilled - lowThreshold) / (medThreshold - lowThreshold);
         } else {
           color1 = secondHighestColor;
           color2 = highestColor;
-          percent = (percentFilled - 0.66) / 0.33;
+          percent = (percentFilled - medThreshold) / (1 - medThreshold);
         }
         const red = Math.min(
           Math.ceil(color1[0] + percent * (color2[0] - color1[0])),

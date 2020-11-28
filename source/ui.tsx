@@ -4,11 +4,11 @@ import soundcloudKeyFetch from "soundcloud-key-fetch";
 import lame from "@suldashi/lame";
 import got from "got";
 import Speaker from "speaker";
-
-import { bufferToUInt8, createSpectrumsProcessor } from "./audio";
 import useStdoutDimensions from "ink-use-stdout-dimensions";
+import Analyser from 'audio-analyser';
+
+import normalizeAudioData from "./normalizeAudioData";
 import Spectrum from "./Spectrum";
-const FPS = 20;
 
 type UserStreamsResponse = {
   collection: {
@@ -30,14 +30,9 @@ type UserStreamsResponse = {
 type TranscodingUrlResponse = {
   url: string;
 };
-const PCM_FORMAT = {
-  bit: 8,
-  sign: "u",
-  parseFunction: bufferToUInt8,
-};
 
 async function sideEffects(
-  callback: (frame: number, audioDataParser: () => number[]) => void
+  callback: (frame: number, audioDataParser: (columns: number) => number[]) => void
 ) {
   const key = await soundcloudKeyFetch.fetchKey();
   const response = await got<UserStreamsResponse>(
@@ -62,107 +57,66 @@ async function sideEffects(
       }
     );
     const decoder = lame.Decoder();
-    decoder.on("format", (format: any) => {
-      const s = new Speaker(format);
-      const start = Date.now();
-      let shouldRender = true;
-      function renderFrame() {
-        const elapsedTime = Date.now() - start;
-        const audioDataParser = () => {
-          const frame = Math.floor((elapsedTime / 1000) * FPS);
-          return PCM_FORMAT.parseFunction(
-            buffer,
-            frame * audioDataStep,
-            frame * audioDataStep + audioDataStep
-          );
-        };
-
-        try {
-          callback(Math.floor((elapsedTime / 1000) * FPS), audioDataParser);
-        } catch (e) {
-          console.log("yack", e);
-        }
-        if (shouldRender) {
-          setTimeout(renderFrame, 1000 / FPS);
+    const analyzer = new Analyser({
+      minDecibels: -100,
+      maxDecibels: 0,
+      throttle: 10,
+      smoothingTimeConstant: 0.1,
+    });
+    // @ts-ignore
+    const s = new Speaker({ samplesPerFrame: 1 });
+    const apiStream = got.stream(response.body.url);
+    
+    let start;
+    decoder.on('data', (data) => {
+      decoder.pause();
+      if (!start) start = Date.now();
+      let piece = 0;
+      function writeUntilEmpty() {
+        const chunkSize = 1024 * 2 * 2;
+        const chunk = data.slice(piece * chunkSize, (piece + 1) * chunkSize);
+        
+        analyzer.write(chunk);
+        if (!chunk.length) {
+          decoder.resume();
+        } else if (s.write(chunk)) {
+          console.log('ugh'); // hmm...
         } else {
+          callback(Date.now() - start, (columns: number) => analyzer.getFrequencyData(columns));
+          s.once('drain', () => {
+            piece++;
+            writeUntilEmpty();
+          });
         }
       }
-      renderFrame();
-      decoder.on("end", () => {
-        shouldRender = false;
-        console.log("all done", Date.now() - start);
-      });
-      let totalProcessed = 0;
-      decoder.on("data", (chunk) => {
-        totalProcessed += chunk;
-        // console.log(chunk.length);
-      });
-      decoder.pipe(s);
+      writeUntilEmpty();
     });
-
-    const streamResponse = await got(response.body.url, {
-      responseType: "buffer",
-    });
-    const buffer = streamResponse.body;
-
-    /**
-     * hmmm
-     */
-    const format = {
-      raw_encoding: 208,
-      sampleRate: 44100,
-      channels: 2,
-      signed: true,
-      float: false,
-      ulaw: false,
-      alaw: false,
-      bitDepth: 16,
-    };
-    const audioDuration = 136.008;
-    const framesCount = Math.trunc(audioDuration * FPS);
-    const audioDataStep = Math.trunc(buffer.length / framesCount);
-    got.stream(response.body.url).pipe(decoder);
+    apiStream.pipe(decoder)
   }
 }
 
 const App: FC = () => {
   const [columns, rows] = useStdoutDimensions();
-  const baseSpectrum = Array.apply(null, Array(columns)).map(() => 0);
-  const [spectrumProcessor, setSpectrumProcessor] = useState({
-    processor: undefined,
-  });
+  const baseSpectrum = Array.apply(null, Array(columns)).map(() => -100);
   const [frameData, setFrameData] = useState({
-    frame: 0,
-    audioDataParser: () => baseSpectrum,
+    time: 0,
+    audioDataParser: (num) => baseSpectrum,
   });
   useEffect(() => {
-    sideEffects((frame, audioDataParser) => {
+    sideEffects((time, audioDataParser) => {
       setFrameData({
-        frame,
+        time,
         audioDataParser,
       });
     });
   }, []);
-  useEffect(() => {
-    setSpectrumProcessor({
-      processor: createSpectrumsProcessor(columns),
-    });
-  }, [columns]);
-  let spectrum = baseSpectrum;
-
-  try {
-    if (spectrumProcessor.processor) {
-      spectrum = spectrumProcessor.processor(frameData.audioDataParser);
-    }
-  } catch (e) {
-    // console.log("error", e);
-  }
-  const seconds = Math.floor(frameData.frame / FPS);
+  const seconds = Math.floor(frameData.time / 1000);
+  const spec = normalizeAudioData(frameData.audioDataParser(columns));
   return (
     <>
-      <Spectrum height={25} width={columns} spectrum={spectrum} />
+      {<Spectrum height={5} width={columns} spectrum={spec} />}
       <Text>
-        Ken Wheeler - Those Cheeks {Math.floor(seconds / 60)}:
+        Ken Wheeler - <Text italic>Those Cheeks</Text> {Math.floor(seconds / 60)}:
         {(seconds % 60).toString().padStart(2, "0")}
       </Text>
     </>
