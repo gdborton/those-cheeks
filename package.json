@@ -19,12 +19,11 @@
 	],
 	"dependencies": {
 		"@suldashi/lame": "^1.2.5",
-		"chunk": "0.0.3",
+		"audio-analyser": "^1.0.2",
 		"got": "^11.8.0",
 		"ink": "^3.0.8",
+		"ink-link": "^2.0.0",
 		"ink-use-stdout-dimensions": "^1.0.5",
-		"meow": "^8.0.0",
-		"nodemon": "^2.0.6",
 		"react": "^17.0.1",
 		"soundcloud-key-fetch": "^1.0.11",
 		"speaker": "^0.5.2"
@@ -39,6 +38,7 @@
 		"eslint-plugin-react": "^7.21.5",
 		"eslint-plugin-react-hooks": "^4.2.0",
 		"ink-testing-library": "^2.1.0",
+		"nodemon": "^2.0.6",
 		"typescript": "^4.1.2",
 		"xo": "^0.35.0"
 	},
