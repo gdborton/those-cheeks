@@ -37,7 +37,7 @@ export default function getCharacterFromRemainders(leftRemainder, rightRemainder
     } else {
       return '⡄';
     }
-  } else if (leftRemainder >= 0) {
+  } else if (leftRemainder >= 0 || isBaseline) {
     // ⣸, ⣰, ⣠, ⣀
     if (rightRemainder > 3 / 4) {
       return "⣸";
