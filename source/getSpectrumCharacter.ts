@@ -1,4 +1,4 @@
-export default function getCharacterFromRemainders(leftRemainder, rightRemainder, lineNumber) {
+export default function getCharacterFromRemainders(leftRemainder, rightRemainder, isBaseline: boolean) {
   if (leftRemainder > 3 / 4) {
     if (rightRemainder > 3 / 4) {
       return "⣿";
@@ -6,7 +6,7 @@ export default function getCharacterFromRemainders(leftRemainder, rightRemainder
       return '⣷';
     } else if(rightRemainder > 1 / 4) {
       return '⣧';
-    } else if (rightRemainder >= 0 || lineNumber === 0) {
+    } else if (rightRemainder >= 0 || isBaseline) {
       return '⣇';
     } else {
       return '⡇';
@@ -19,7 +19,7 @@ export default function getCharacterFromRemainders(leftRemainder, rightRemainder
       return '⣶';
     } else if(rightRemainder > 1 / 4) {
       return '⣦';
-    } else if (rightRemainder >= 0 || lineNumber === 0) {
+    } else if (rightRemainder >= 0 || isBaseline) {
       return '⣆';
     } else {
       return '⡆';
@@ -32,7 +32,7 @@ export default function getCharacterFromRemainders(leftRemainder, rightRemainder
       return '⣴';
     } else if(rightRemainder > 1 / 4) {
       return '⣤';
-    } else if (rightRemainder >= 0 || lineNumber === 0) {
+    } else if (rightRemainder >= 0 || isBaseline) {
       return '⣄';
     } else {
       return '⡄';
@@ -45,7 +45,7 @@ export default function getCharacterFromRemainders(leftRemainder, rightRemainder
       return '⣰';
     } else if(rightRemainder > 1 / 4) {
       return '⣠';
-    } else if (rightRemainder >= 0 || lineNumber === 0) {
+    } else if (rightRemainder >= 0 || isBaseline) {
       return '⣀';
     } else {
       return '⡀'
@@ -58,13 +58,13 @@ export default function getCharacterFromRemainders(leftRemainder, rightRemainder
       return '⢰';
     } else if(rightRemainder > 1 / 4) {
       return '⢠';
-    } else if (lineNumber === 0) {
+    } else if (isBaseline) {
       return '⣀';
     } else {
       return '⢀';
     }
-  } else if (lineNumber === 0) {
+  } else if (isBaseline) {
     return "⣀";
   }
-  return "⠀";
+  return "⠀"; // braille character w/ no dots
 }

@@ -1,13 +1,14 @@
 import React, { FC, useEffect, useState } from "react";
 import { Text } from "ink";
 import soundcloudKeyFetch from "soundcloud-key-fetch";
-import lame from "@suldashi/lame";
+// @ts-ignore
+import lame from "lame-private-no-maintainence-shrug2";
 import got from "got";
-import Speaker from "speaker";
+import Speaker from "speaker-private-no-maintainence-shrug2";
 import useStdoutDimensions from "ink-use-stdout-dimensions";
 import Analyser from "audio-analyser";
 import InkLink from "ink-link";
-
+import { platform } from "os";
 import normalizeAudioData from "./normalizeAudioData";
 import Spectrum from "./Spectrum";
 
@@ -64,11 +65,14 @@ async function sideEffects(
     const analyzer = new Analyser({
       minDecibels: -100,
       maxDecibels: 0,
-      throttle: 10,
-      smoothingTimeConstant: 0.1,
+      smoothingTimeConstant: 0.4,
+      throttle: 1,
     });
-    // @ts-ignore
-    const s = new Speaker({ samplesPerFrame: 1 });
+
+    const s = new Speaker({
+      // @ts-ignore
+      samplesPerFrame: platform() === "darwin" ? 44100 : 1,
+    });
     const apiStream = got.stream(response.body.url);
 
     let start;
@@ -76,27 +80,23 @@ async function sideEffects(
       decoder.pause();
       if (!start) start = Date.now();
       let piece = 0;
+      const chunkSize = 1024;
       function writeUntilEmpty() {
-        const chunkSize = 1024 * 2 * 2;
         const chunk = data.slice(piece * chunkSize, (piece + 1) * chunkSize);
 
-        analyzer.write(chunk);
         if (!chunk.length) {
           decoder.resume();
-        } else if (s.write(chunk)) {
-          // hmm... doesn't seem to me that speaker is ever ready for two writes in a row.
         } else {
-          callback(Date.now() - start, (columns: number) =>
-            analyzer.getFrequencyData(columns)
-          );
-          s.once("drain", () => {
-            if (finished) {
-              callback(Date.now() - start, (columns: number) =>
-                Array.apply(null, Array(columns)).map(() => -100)
-              );
-            }
+          s.write(chunk, () => {
             piece++;
             writeUntilEmpty();
+            analyzer._capture(chunk, () => {
+              if (!finished) {
+                callback(Date.now() - start, (columns: number) =>
+                  analyzer.getFrequencyData(columns)
+                );
+              }
+            });
           });
         }
       }
@@ -105,6 +105,9 @@ async function sideEffects(
     let finished = false;
     decoder.on("end", () => {
       finished = true;
+      callback(Date.now() - start, (columns: number) =>
+        Array.apply(null, Array(columns)).map(() => -100)
+      );
     });
     apiStream.pipe(decoder);
   }
@@ -113,20 +116,18 @@ async function sideEffects(
 const App: FC = () => {
   const [columns, rows] = useStdoutDimensions();
   const columnsToRender = Math.min(columns * 2, 160);
-  const baseSpectrum = Array.apply(null, Array(columnsToRender)).map(
-    () => -100
-  );
   const [frameData, setFrameData] = useState({
     time: 0,
-    audioDataParser: (num) => baseSpectrum,
+    audioDataParser: (num) =>
+      Array.apply(null, Array(columnsToRender)).map(() => -100),
   });
   useEffect(() => {
     sideEffects((time, audioDataParser) => {
-      setFrameData({
-        time,
-        audioDataParser,
+        setFrameData({
+          time,
+          audioDataParser,
+        });
       });
-    });
   }, []);
   const seconds = Math.floor(frameData.time / 1000);
   const spec = normalizeAudioData(frameData.audioDataParser(columnsToRender));
@@ -138,11 +139,7 @@ const App: FC = () => {
     .padStart(2, "0")}`;
   return (
     <>
-      <Spectrum
-        height={rows - 1}
-        width={columnsToRender / 2}
-        spectrum={spec}
-      />
+      {<Spectrum height={Math.min(rows - 1, 20)} width={columnsToRender / 2} spectrum={spec} />}
       <Text>
         <InkLink
           fallback={false}
@@ -152,8 +149,12 @@ const App: FC = () => {
           {spacer}
           <Text italic>{title}</Text>
         </InkLink>
-        {" ".repeat(Math.max(1, columnsToRender / 2 -
-            (artist.length + spacer.length + title.length + time.length))
+        {" ".repeat(
+          Math.max(
+            1,
+            columnsToRender / 2 -
+              (artist.length + spacer.length + title.length + time.length)
+          )
         )}
         {time}
       </Text>

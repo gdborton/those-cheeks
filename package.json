@@ -1,6 +1,6 @@
 {
 	"name": "those-cheeks",
-	"version": "0.0.0",
+	"version": "0.0.1-alpha.17",
 	"license": "MIT",
 	"bin": "dist/cli.js",
 	"engines": {
@@ -15,18 +15,19 @@
 		"tsc:watch": "tsc --watch"
 	},
 	"files": [
-		"dist/cli.js"
+		"dist/*"
 	],
 	"dependencies": {
-		"@suldashi/lame": "^1.2.5",
 		"audio-analyser": "^1.0.2",
+		"chunk": "0.0.3",
 		"got": "^11.8.0",
 		"ink": "^3.0.8",
 		"ink-link": "^2.0.0",
 		"ink-use-stdout-dimensions": "^1.0.5",
+		"lame-private-no-maintainence-shrug2": "^0.1.12-2",
 		"react": "^17.0.1",
 		"soundcloud-key-fetch": "^1.0.11",
-		"speaker": "^0.5.2"
+		"speaker-private-no-maintainence-shrug2": "0.0.1-alpha.20"
 	},
 	"devDependencies": {
 		"@ava/typescript": "^1.1.1",
