@@ -61,6 +61,12 @@ async function sideEffects(
         responseType: "json",
       }
     );
+    /**
+     * TODO, pull this from the decoder instead of hardcoding.
+     */
+    const SAMPLE_RATE = 44100;
+    const CHANNELS = 2;
+    const SIGNED = true;
     const decoder = lame.Decoder();
     const analyzer = new Analyser({
       minDecibels: -100,
@@ -71,19 +77,18 @@ async function sideEffects(
 
     const s = new Speaker({
       // @ts-ignore
-      samplesPerFrame: platform() === "darwin" ? 44100 : 1,
+      samplesPerFrame: platform() === "darwin" ? SAMPLE_RATE : 1,
     });
     const apiStream = got.stream(response.body.url);
 
-    let start;
+    let total = 0;
     decoder.on("data", (data) => {
       decoder.pause();
-      if (!start) start = Date.now();
       let piece = 0;
       const chunkSize = 1024;
       function writeUntilEmpty() {
         const chunk = data.slice(piece * chunkSize, (piece + 1) * chunkSize);
-
+        total += chunk.length;
         if (!chunk.length) {
           decoder.resume();
         } else {
@@ -92,8 +97,9 @@ async function sideEffects(
             writeUntilEmpty();
             analyzer._capture(chunk, () => {
               if (!finished) {
-                callback(Date.now() - start, (columns: number) =>
-                  analyzer.getFrequencyData(columns)
+                callback(
+                  total / SAMPLE_RATE / CHANNELS / (SIGNED ? 2 : 1),
+                  (columns: number) => analyzer.getFrequencyData(columns)
                 );
               }
             });
@@ -105,8 +111,9 @@ async function sideEffects(
     let finished = false;
     decoder.on("end", () => {
       finished = true;
-      callback(Date.now() - start, (columns: number) =>
-        Array.apply(null, Array(columns)).map(() => -100)
+      callback(
+        total / SAMPLE_RATE / CHANNELS / (SIGNED ? 2 : 1),
+        (columns: number) => Array.apply(null, Array(columns)).map(() => -100)
       );
     });
     apiStream.pipe(decoder);
@@ -123,13 +130,13 @@ const App: FC = () => {
   });
   useEffect(() => {
     sideEffects((time, audioDataParser) => {
-        setFrameData({
-          time,
-          audioDataParser,
-        });
+      setFrameData({
+        time,
+        audioDataParser,
       });
+    });
   }, []);
-  const seconds = Math.floor(frameData.time / 1000);
+  const seconds = Math.floor(frameData.time);
   const spec = normalizeAudioData(frameData.audioDataParser(columnsToRender));
   const title = "Those Cheeks";
   const artist = "Ken Wheeler";
@@ -139,7 +146,13 @@ const App: FC = () => {
     .padStart(2, "0")}`;
   return (
     <>
-      {<Spectrum height={Math.min(rows - 1, 20)} width={columnsToRender / 2} spectrum={spec} />}
+      {
+        <Spectrum
+          height={Math.min(rows - 1, 20)}
+          width={columnsToRender / 2}
+          spectrum={spec}
+        />
+      }
       <Text>
         <InkLink
           fallback={false}
