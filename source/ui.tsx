@@ -25,13 +25,42 @@ type UserStreamsResponse = {
           };
         }[];
       };
+      title: string;
     };
   }[];
+  next_href?: string;
 };
 
 type TranscodingUrlResponse = {
   url: string;
 };
+
+async function findTranscoding(key: string) {
+  const urls = [
+    `https://api-v2.soundcloud.com/stream/users/2173404?limit=40&client_id=${key}&app_version=1606403857&app_locale=en`
+  ];
+  
+  for (const url of urls) {
+    const response = await got<UserStreamsResponse>(
+      url,
+      {
+        responseType: "json",
+      }
+    );
+    const item = response.body.collection.find((item) => {
+      if (!item.track) return false;
+      return item.type === "track" && item.track.id === 691418836;
+    });
+    if (!item && response.body.next_href) {
+      urls.push(`${response.body.next_href}&client_id=${key}`);
+    } else if (item) {
+      const transcoding = item.track?.media.transcodings.find(
+        (transcoding) => transcoding.format.protocol === "progressive"
+      );
+      return transcoding;
+    }
+  }
+}
 
 async function sideEffects(
   callback: (
@@ -40,20 +69,7 @@ async function sideEffects(
   ) => void
 ) {
   const key = await soundcloudKeyFetch.fetchKey();
-  const response = await got<UserStreamsResponse>(
-    `https://api-v2.soundcloud.com/stream/users/2173404?limit=40&client_id=${key}&app_version=1606403857&app_locale=en`,
-    {
-      responseType: "json",
-    }
-  );
-  const item = response.body.collection.find((item) => {
-    if (!item.track) return false;
-    return item.type === "track" && item.track.id === 691418836;
-  });
-  if (!item) return;
-  const transcoding = item.track?.media.transcodings.find(
-    (transcoding) => transcoding.format.protocol === "progressive"
-  );
+  const transcoding = await findTranscoding(key);
   if (transcoding) {
     const response = await got<TranscodingUrlResponse>(
       `${transcoding.url}?client_id=${key}`,
@@ -61,6 +77,12 @@ async function sideEffects(
         responseType: "json",
       }
     );
+    /**
+     * TODO, pull this from the decoder instead of hardcoding.
+     */
+    const SAMPLE_RATE = 44100;
+    const CHANNELS = 2;
+    const SIGNED = true;
     const decoder = lame.Decoder();
     const analyzer = new Analyser({
       minDecibels: -100,
@@ -71,19 +93,18 @@ async function sideEffects(
 
     const s = new Speaker({
       // @ts-ignore
-      samplesPerFrame: platform() === "darwin" ? 44100 : 1,
+      samplesPerFrame: platform() === "darwin" ? SAMPLE_RATE : 1,
     });
     const apiStream = got.stream(response.body.url);
 
-    let start;
+    let total = 0;
     decoder.on("data", (data) => {
       decoder.pause();
-      if (!start) start = Date.now();
       let piece = 0;
       const chunkSize = 1024;
       function writeUntilEmpty() {
         const chunk = data.slice(piece * chunkSize, (piece + 1) * chunkSize);
-
+        total += chunk.length;
         if (!chunk.length) {
           decoder.resume();
         } else {
@@ -92,8 +113,9 @@ async function sideEffects(
             writeUntilEmpty();
             analyzer._capture(chunk, () => {
               if (!finished) {
-                callback(Date.now() - start, (columns: number) =>
-                  analyzer.getFrequencyData(columns)
+                callback(
+                  total / SAMPLE_RATE / CHANNELS / (SIGNED ? 2 : 1),
+                  (columns: number) => analyzer.getFrequencyData(columns)
                 );
               }
             });
@@ -105,8 +127,9 @@ async function sideEffects(
     let finished = false;
     decoder.on("end", () => {
       finished = true;
-      callback(Date.now() - start, (columns: number) =>
-        Array.apply(null, Array(columns)).map(() => -100)
+      callback(
+        total / SAMPLE_RATE / CHANNELS / (SIGNED ? 2 : 1),
+        (columns: number) => Array.apply(null, Array(columns)).map(() => -100)
       );
     });
     apiStream.pipe(decoder);
@@ -115,7 +138,7 @@ async function sideEffects(
 
 const App: FC = () => {
   const [columns, rows] = useStdoutDimensions();
-  const columnsToRender = Math.min(columns * 2, 160);
+  const columnsToRender = columns * 2;
   const [frameData, setFrameData] = useState({
     time: 0,
     audioDataParser: (num) =>
@@ -123,13 +146,13 @@ const App: FC = () => {
   });
   useEffect(() => {
     sideEffects((time, audioDataParser) => {
-        setFrameData({
-          time,
-          audioDataParser,
-        });
+      setFrameData({
+        time,
+        audioDataParser,
       });
+    });
   }, []);
-  const seconds = Math.floor(frameData.time / 1000);
+  const seconds = Math.floor(frameData.time);
   const spec = normalizeAudioData(frameData.audioDataParser(columnsToRender));
   const title = "Those Cheeks";
   const artist = "Ken Wheeler";
@@ -139,7 +162,13 @@ const App: FC = () => {
     .padStart(2, "0")}`;
   return (
     <>
-      {<Spectrum height={Math.min(rows - 1, 20)} width={columnsToRender / 2} spectrum={spec} />}
+      {
+        <Spectrum
+          height={Math.min(rows - 1, 20)}
+          width={columnsToRender / 2}
+          spectrum={spec}
+        />
+      }
       <Text>
         <InkLink
           fallback={false}
