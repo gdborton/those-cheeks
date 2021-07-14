@@ -25,13 +25,42 @@ type UserStreamsResponse = {
           };
         }[];
       };
+      title: string;
     };
   }[];
+  next_href?: string;
 };
 
 type TranscodingUrlResponse = {
   url: string;
 };
+
+async function findTranscoding(key: string) {
+  const urls = [
+    `https://api-v2.soundcloud.com/stream/users/2173404?limit=40&client_id=${key}&app_version=1606403857&app_locale=en`
+  ];
+  
+  for (const url of urls) {
+    const response = await got<UserStreamsResponse>(
+      url,
+      {
+        responseType: "json",
+      }
+    );
+    const item = response.body.collection.find((item) => {
+      if (!item.track) return false;
+      return item.type === "track" && item.track.id === 691418836;
+    });
+    if (!item && response.body.next_href) {
+      urls.push(`${response.body.next_href}&client_id=${key}`);
+    } else if (item) {
+      const transcoding = item.track?.media.transcodings.find(
+        (transcoding) => transcoding.format.protocol === "progressive"
+      );
+      return transcoding;
+    }
+  }
+}
 
 async function sideEffects(
   callback: (
@@ -40,20 +69,7 @@ async function sideEffects(
   ) => void
 ) {
   const key = await soundcloudKeyFetch.fetchKey();
-  const response = await got<UserStreamsResponse>(
-    `https://api-v2.soundcloud.com/stream/users/2173404?limit=40&client_id=${key}&app_version=1606403857&app_locale=en`,
-    {
-      responseType: "json",
-    }
-  );
-  const item = response.body.collection.find((item) => {
-    if (!item.track) return false;
-    return item.type === "track" && item.track.id === 691418836;
-  });
-  if (!item) return;
-  const transcoding = item.track?.media.transcodings.find(
-    (transcoding) => transcoding.format.protocol === "progressive"
-  );
+  const transcoding = await findTranscoding(key);
   if (transcoding) {
     const response = await got<TranscodingUrlResponse>(
       `${transcoding.url}?client_id=${key}`,
@@ -122,7 +138,7 @@ async function sideEffects(
 
 const App: FC = () => {
   const [columns, rows] = useStdoutDimensions();
-  const columnsToRender = Math.min(columns * 2, 160);
+  const columnsToRender = columns * 2;
   const [frameData, setFrameData] = useState({
     time: 0,
     audioDataParser: (num) =>
